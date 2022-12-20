@@ -1,0 +1,209 @@
+<!doctype html>
+
+
+<html>
+
+<head>
+	<title>Predicting Lattice Parameters with ML</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
+		integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+		integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+		crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/popper.js@1.14.7/dist/umd/popper.min.js"
+		integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+		crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/js/bootstrap.min.js"
+		integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+		crossorigin="anonymous"></script>
+
+	<link rel="stylesheet" href="/static/css/styles.css">
+<style>
+
+input#submit {
+width: 100%;
+height: 60px;
+padding: 10px;
+margin: 5px;
+border-radius: 10px;
+border: 2px solid #031F73;
+color: #031F73;
+background-size: 20px;
+position: relative;
+background-repeat: no-repeat;
+background-position: 10px;
+padding-left: 40px;
+font-size: 20px;
+opacity: 100;
+outline: none;
+
+}
+</style>
+</head>
+
+
+
+
+
+<body>
+	{% include '/static/header.html' %}
+	<div class="mainView">
+	<div class="container mt-5">
+
+
+		<div class="form ">
+			<p class="title text-red">Calculate Heat Capacity</p>
+			<form action="" enctype="multipart/form-data" method="POST">
+				<div class="input-form">
+					{{ form.csrf_token }}
+
+					{{ form.file() }}
+					{{ form.output_data()}}
+
+					{% if (form.file_name.data != None) and (form.file_name.data |length  > 0)%}
+						<p>Your file is already uploaded and will be stored for 15 minutes, there is no need to reupload file unless wish to change the data you are opperating on</p>
+					{% endif%}
+					{% if form.message_field.data != None %}
+						<p>{{form.message_field.data}}</p>
+					{% endif %}
+					{% if form.generated_image.data != None %}
+						<img src={{form.generated_image.data}}>
+					{% endif %}
+					{% if form.output_data.data != None %}
+						<a href={{form.output_data.data}} download>Click here to download your output data</a>
+					{% endif %}
+					<div>
+							<h4>Einstein components</h4>
+							<div id='einstein-container'>
+						{% for nested in form.einstein_comps %}
+
+						<div class="einstein-component">
+						    Einstein Temperature {{loop.index0 +1}} (K)  {{nested.component(class="search_term")}}
+						    Pre-factor for component {{loop.index0 +1}} {{nested.prefactor(class="search_term")}}
+						</div>
+						{% endfor %}
+					</div>
+						<div>
+						    <button type="button" class="downlaod-btn" id="add-einstein-button">Add Einstein component</button>  <button type="button" class="downlaod-btn" id="remove-einstein-button">Remove Einstein component</button>
+						</div>
+						</div>
+					<div>
+					  <h4> Debye Components </h4>
+						<div id='debye-container'>
+						{% for nested in form.debye_comps %}
+						<div class="debye-component">
+						    Debye Temperature {{loop.index0 + 1}} (K)  {{nested.component(class="search_term")}}
+						    Pre-factor for component {{loop.index0 + 1}} {{nested.prefactor(class="search_term")}}
+						</div>
+						{% endfor %}
+					</div>
+						<div>
+						    <button type="button" class="downlaod-btn" id="add-debye-button">Add Debye component</button> <button type="button" class="downlaod-btn" id="remove-debye-button">Remove Debye component</button>
+						</div>
+					</div>
+					<br/>
+					<div>Linear (&gamma;) component {{form.linear(type="search", class="search_term")}}</div>
+					<br/>
+					Plot data as C<sub>p</sub>/T<sup>n</sup> (n = 0 for high T fitting, 3 for low T fitting){{form.temp_power(type="search", class="search_term")}}
+					Model Starting Temperature (K) {{form.start_T(type="search",class="search_term")}}
+					Model Ending Temperature (K) {{form.end_T(type="search",class="search_term")}}
+					<br/>
+					<div>X axis log scale? {{form.log_x()}}</div>
+					<div> Y axis log scale? {{form.log_y()}}</div>
+
+
+					{{form.file_name() }}
+					{{form.generated_image()}}
+					{{ form.submit() }}
+				</div>
+
+			</form>
+
+			{% if results %}
+			<button type="button" class="downlaod-btn" onclick="tableToCSV()">
+				Download as csv
+			</button>
+
+			<table class="table table-striped table-hover">
+				<tr>
+					<th>Linker</th>
+					<th>Metal</th>
+					<th>Predicted porisity category</th>
+				</tr>
+				{% for result in results %}
+				<tr>
+					<td> {{ result[0] }} </td>
+					<td> {{ result[1] }} </td>
+					<td> {{ result[5] }} </td>
+				</tr>
+				{% endfor %}
+
+			</table>
+
+			{% endif %}
+		</div>
+
+
+	</div>
+</div>
+	{% include '/static/footer.html' %}
+
+</body>
+
+<script type="text/javascript">
+window.addEventListener("load", function(){
+	document.getElementById('add-einstein-button').addEventListener('click', function() {
+  // Get the number of existing Einstein components
+  var numComponents = document.querySelectorAll('.einstein-component').length  + 1;
+
+  // Create a new div element
+  var newDiv = document.createElement('div');
+  var id = "einstein_comps-" + (numComponents-1)
+  // Set the innerHTML of the div to the HTML for a new Einstein component, using the correct index
+  newDiv.innerHTML = `
+    Einstein Temperature ${numComponents} (K) <input id=${id + "-component"} name=${id + "-component"} required="" type="text" class="search_term">
+    Pre-factor component for ${numComponents} <input id=${id + "-prefactor"} name=${id + "-prefactor"} required="" type="text" class="search_term">
+  `;
+
+  // Add a class to the new div for styling and identifying the component
+  newDiv.classList.add('einstein-component');
+
+  // Append the new div to the container element
+  document.getElementById('einstein-container').appendChild(newDiv);
+});
+
+document.getElementById('add-debye-button').addEventListener('click', function() {
+  // Get the number of existing Debye components
+  var numComponents = document.querySelectorAll('.debye-component').length +1;
+
+  // Create a new div element
+  var newDiv = document.createElement('div');
+  var id = "debye_comps-"+(numComponents-1)
+  // Set the innerHTML of the div to the HTML for a new Debye component, using the correct index
+  newDiv.innerHTML = `
+    Debye Temperature ${numComponents} (K) <input id=${id + "-component"} name=${id + "-component"} required="" type="text" class="search_term">
+    Pre-factor component for ${numComponents} <input id=${id + "-prefactor"} name=${id + "-prefactor"} required="" type="text" class="search_term">
+
+  `;
+
+  // Add a class to the new div for styling and identifying the component
+  newDiv.classList.add('debye-component');
+
+  // Append the new div to the container element
+  document.getElementById('debye-container').appendChild(newDiv);
+});
+
+document.getElementById("remove-debye-button").onclick = function() {
+  var debyeContainer = document.getElementById("debye-container");
+  debyeContainer.removeChild(debyeContainer.lastChild);
+};
+
+document.getElementById("remove-einstein-button").onclick = function() {
+  var einsteinContainer = document.getElementById("einstein-container");
+  einsteinContainer.removeChild(einsteinContainer.lastChild);
+};
+
+});
+</script>
+</html>
