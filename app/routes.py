@@ -123,8 +123,7 @@ def predict():
             # No file, no fun, return them to the form
             else:
                 return render_template("heat_capacity.html", form=form)
-            app.logger.debug("Power4:")
-            app.logger.debug(form.temp_power.data)
+
             einstein_comps = [(x.component.data, x.prefactor.data)
                               for x in form.einstein_comps]
             app.logger.debug(einstein_comps)
@@ -133,9 +132,12 @@ def predict():
             app.logger.debug(debye_comps)
             # Check args
             if sum([x[1] for x in einstein_comps+debye_comps]) != 1:
-                form.message_field.data = "Sum of proportions of Einstein and Debye components should be 1. Please adjust appropriately"
-                return render_template("heat_capacity.html", form=form)
-            app.logger.debug(uploaded_file)
+                form.message_field.data = "The sum of the Debye and Einstein pre-factors do not sum to 1, please amend this before downloading your model."
+            if float(form.start_T.data) < 1.7:
+                if form.message_field.data is None:
+                    form.message_field.data = ""
+                form.message_field.data += "<br> <b> Warning:</b> this model does not work below approximately 1.6 Kelvin"
+
             # Parse uploaded data
             data_0 = [float(x.split(',')[0].rstrip()) for x in uploaded_file]
             data_1 = [float(x.split(',')[1].rstrip()) for x in uploaded_file]
@@ -206,7 +208,7 @@ def predict():
             file_name = ''.join(random.sample(char_set*6, 8))+'.png'
             plt.tight_layout()
             # Save plot
-            plt.savefig(os.path.join(app.config['GENERATED_IMAGES_FOLDER'],file_name))
+            plt.savefig(os.path.join(app.config['GENERATED_IMAGES_FOLDER'], file_name))
             plt.close()
 
             # Direct user to saved plot
@@ -215,7 +217,7 @@ def predict():
 
             # Save resulting data
             df = pd.DataFrame(data_dict)
-            df.to_csv(os.path.join(app.config['GENERATED_DATA_FOLDER'],file_name),index=False)
+            df.to_csv(os.path.join(app.config['GENERATED_DATA_FOLDER'], file_name),index=False)
             form.output_data.data = os.path.join('heat_capacity/static/generated_data', file_name)
             return render_template("heat_capacity.html", form=form)
 
