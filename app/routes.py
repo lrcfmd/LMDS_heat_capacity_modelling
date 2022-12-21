@@ -92,7 +92,7 @@ def y(gamma, T):
 
 
 @app.route("/", methods=['GET', 'POST'])
-@app.route("/predict", methods=['POST'])
+@app.route("/predict", methods=['GET', 'POST'])
 def predict():
     form = SearchForm()
     form.output_data.data = None
