@@ -143,23 +143,26 @@ def predict():
             data_1 = [float(x.split(',')[1].rstrip()) for x in uploaded_file]
 
             # Create lists to fill with modeled data
-            debye_ys = [[]] * len(debye_comps)
-            einstein_ys = [[]] * len(einstein_comps)
+            debye_ys = [[] for i in debye_comps]
+            einstein_ys = [[] for i in einstein_comps]
             linear_ys = []
             # Temperatures at which to calculate
             temps = np.arange(float(form.start_T.data), float(form.end_T.data), 0.1)
             # Model data
-            for T in temps:
-                for ys, (Td, Tdp) in zip(debye_ys, debye_comps):
-                    if Tdp:
-                        ys.append((Tdp * Debye(T, Td))/T**form.temp_power.data)
 
-                for ys, (Te, Tep) in zip(einstein_ys, einstein_comps):
+            for T in temps:
+                for i, (Td, Tdp) in enumerate(debye_comps):
+                    if Tdp:
+                        app.logger.debug(f"{i}")
+                        debye_ys[i].append((Tdp * Debye(T, Td))/T**form.temp_power.data)
+
+                for i, (Te, Tep) in enumerate(einstein_comps):
                     if Tep:
-                        ys.append((Tep * Einstein(T, Te))/T**form.temp_power.data)
+                        einstein_ys[i].append((Tep * Einstein(T, Te))/T**form.temp_power.data)
                 # Linear (gamma) part
                 if form.linear.data:
                     linear_ys.append((y(form.linear.data, T))/T**form.temp_power.data)
+                    
             all_ys = zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0])
             totaly = list(map(sum, all_ys))
 
@@ -173,6 +176,7 @@ def predict():
             plt.plot(temps, totaly, c="black", label="total")
             data_dict = {"T": temps, "Total": totaly}
             for i, ys in enumerate(debye_ys):
+                app.logger.debug(f"i {i} Len ys:, {len(ys)}")
                 if len(ys) > 0:
                     data_dict[f"D{i+1}"] = ys
                     plt.plot(temps, ys, label=f"D{i+1}")
