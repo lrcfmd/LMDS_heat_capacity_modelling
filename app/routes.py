@@ -4,6 +4,7 @@ import random
 import traceback
 import string
 from flask import render_template
+from flask_restful import Resource, Api, reqparse
 from math import e, exp
 from jinja2 import BaseLoader, TemplateNotFound, ChoiceLoader
 import logging
@@ -15,9 +16,22 @@ import pandas as pd
 from scipy.integrate import quad
 from scipy.constants import R
 from urllib import request, parse
+import werkzeug
 from werkzeug.utils import secure_filename
-from app import app
+from app import app, api
 from app.forms import SearchForm
+
+parser = reqparse.RequestParser()
+parser.add_argument('Debye_components')
+parser.add_argument('Einstein_components')
+parser.add_argument('linear_component')
+parser.add_argument('start_temp')
+parser.add_argument('end_temp')
+parser.add_argument('exponent')
+parser.add_argument('log_x')
+parser.add_argument('log_y')
+parser.add_argument("input_data")
+parser.add_argument("data_file_name")
 
 # As this is a backend must use different renderer
 matplotlib.use('Agg')
@@ -91,6 +105,89 @@ def y(gamma, T):
     return j
 
 
+def model_heat_capacity(debye_comps, einstein_comps, linear, uploaded_file, start_t, end_t, log_x, log_y, exponent_val):
+    data_0 = [float(x.split(',')[0].rstrip()) for x in uploaded_file]
+    data_1 = [float(x.split(',')[1].rstrip()) for x in uploaded_file]
+            
+    # Create lists to fill with modeled data
+    debye_ys = [[]] * len(debye_comps)
+    einstein_ys = [[]] * len(einstein_comps)
+    linear_ys = []
+    # Temperatures at which to calculate
+    temps = np.arange(start_t, end_t, 0.1)
+    # Model data
+    for T in temps:
+        for ys, (Td, Tdp) in zip(debye_ys, debye_comps):
+            if Tdp:
+                ys.append((Tdp * Debye(T, Td))/T**exponent_val)
+
+        for ys, (Te, Tep) in zip(einstein_ys, einstein_comps):
+            if Tep:
+                ys.append((Tep * Einstein(T, Te))/T**exponent_val)
+        # Linear (gamma) part
+        if linear is not None:
+            linear_ys.append((y(linear, T))/T**exponent_val)
+    all_ys = zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0])
+    totaly = list(map(sum, all_ys))
+
+    # Plot
+    plt.scatter(data_0,
+                [data_1[i]/data_0[i]**int(exponent_val)
+                    for i in range(len(data_0))],
+                c="r",
+                s=10,
+                label="data")
+    plt.plot(temps, totaly, c="black", label="total")
+    data_dict = {"T": temps, "Total": totaly}
+    for i, ys in enumerate(debye_ys):
+        if len(ys) > 0:
+            data_dict[f"D{i+1}"] = ys
+            plt.plot(temps, ys, label=f"D{i+1}")
+    for i, ys in enumerate(einstein_ys):
+        if len(ys) > 0:
+            data_dict[f"E{i+1}"] = ys
+            plt.plot(temps, ys, label=f"E{i+1}")
+
+    if linear is not None:
+        data_dict["Linear"] = linear_ys
+        plt.plot(temps, linear_ys, label="Linear")
+
+    plt.xlabel("$T$")
+    if exponent_val > 1:
+        plt.ylabel(f"$C_p/T^{exponent_val}$")
+    elif exponent_val == 1:
+        plt.ylabel("$C_p/T$")
+    elif exponent_val == 0:
+        plt.ylabel("$C_p$")
+    if log_x:
+        plt.xlabel("$log T$")
+        plt.xscale('log')
+    if log_y:
+        plt.yscale('log')
+        if exponent_val > 1:
+            plt.ylabel(f"$log(C_p/T^{exponent_val})$")
+        elif exponent_val == 1:
+            plt.ylabel("$log(C_p/T)$")
+        elif exponent_val == 0:
+            plt.ylabel("$log(C_p)$")
+
+    plt.legend()
+    image_file_name = ''.join(random.sample(char_set*6, 8))+'.png' 
+    plt.tight_layout()
+    # Save plot
+    plt.savefig(os.path.join(app.config['GENERATED_IMAGES_FOLDER'], image_file_name))
+    plt.close()
+
+    # Direct user to saved plot
+    data_file_name = ''.join(random.sample(char_set*6, 8))+'.csv'
+
+    # Save resulting data
+    df = pd.DataFrame(data_dict)
+    df.to_csv(os.path.join(app.config['GENERATED_DATA_FOLDER'], data_file_name),index=False)
+    
+    return image_file_name, data_file_name
+
+
 @app.route("/", methods=['GET', 'POST'])
 @app.route("/predict", methods=['GET', 'POST'])
 def predict():
@@ -137,88 +234,22 @@ def predict():
                 if form.message_field.data is None:
                     form.message_field.data = ""
                 form.message_field.data += "<br> <b> Warning:</b> this model does not work below approximately 1.6 Kelvin"
-
-            # Parse uploaded data
-            data_0 = [float(x.split(',')[0].rstrip()) for x in uploaded_file]
-            data_1 = [float(x.split(',')[1].rstrip()) for x in uploaded_file]
-
-            # Create lists to fill with modeled data
-            debye_ys = [[]] * len(debye_comps)
-            einstein_ys = [[]] * len(einstein_comps)
-            linear_ys = []
-            # Temperatures at which to calculate
-            temps = np.arange(float(form.start_T.data), float(form.end_T.data), 0.1)
-            # Model data
-            for T in temps:
-                for ys, (Td, Tdp) in zip(debye_ys, debye_comps):
-                    if Tdp:
-                        ys.append((Tdp * Debye(T, Td))/T**form.temp_power.data)
-
-                for ys, (Te, Tep) in zip(einstein_ys, einstein_comps):
-                    if Tep:
-                        ys.append((Tep * Einstein(T, Te))/T**form.temp_power.data)
-                # Linear (gamma) part
-                if form.linear.data:
-                    linear_ys.append((y(form.linear.data, T))/T**form.temp_power.data)
-            all_ys = zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0])
-            totaly = list(map(sum, all_ys))
-
-            # Plot
-            plt.scatter(data_0,
-                        [data_1[i]/data_0[i]**int(form.temp_power.data)
-                         for i in range(len(data_0))],
-                        c="r",
-                        s=10,
-                        label="data")
-            plt.plot(temps, totaly, c="black", label="total")
-            data_dict = {"T": temps, "Total": totaly}
-            for i, ys in enumerate(debye_ys):
-                if len(ys) > 0:
-                    data_dict[f"D{i+1}"] = ys
-                    plt.plot(temps, ys, label=f"D{i+1}")
-            for i, ys in enumerate(einstein_ys):
-                if len(ys) > 0:
-                    data_dict[f"E{i+1}"] = ys
-                    plt.plot(temps, ys, label=f"E{i+1}")
-
-            if form.linear.data:
-                data_dict["Linear"] = linear_ys
-                plt.plot(temps, linear_ys, label="Linear")
-
-            plt.xlabel("$T$")
-            if form.temp_power.data > 1:
-                plt.ylabel(f"$C_p/T^{form.temp_power.data}$")
-            elif form.temp_power.data == 1:
-                plt.ylabel("$C_p/T$")
-            elif form.temp_power.data == 0:
-                plt.ylabel("$C_p$")
-            if form.log_x.data:
-                plt.xlabel("$log T$")
-                plt.xscale('log')
-            if form.log_y.data:
-                plt.yscale('log')
-                if form.temp_power.data > 1:
-                    plt.ylabel(f"$log(C_p/T^{form.temp_power.data})$")
-                elif form.temp_power.data == 1:
-                    plt.ylabel("$log(C_p/T)$")
-                elif form.temp_power.data == 0:
-                    plt.ylabel("$log(C_p)$")
-
-            plt.legend()
-            file_name = ''.join(random.sample(char_set*6, 8))+'.png'
-            plt.tight_layout()
-            # Save plot
-            plt.savefig(os.path.join(app.config['GENERATED_IMAGES_FOLDER'], file_name))
-            plt.close()
-
-            # Direct user to saved plot
-            form.generated_image.data = os.path.join('heat_capacity/static/generated_images',file_name)
-            file_name = ''.join(random.sample(char_set*6, 8))+'.csv'
-
-            # Save resulting data
-            df = pd.DataFrame(data_dict)
-            df.to_csv(os.path.join(app.config['GENERATED_DATA_FOLDER'], file_name),index=False)
-            form.output_data.data = os.path.join('heat_capacity/static/generated_data', file_name)
+            
+            linear = form.linear.data if form.linear.data else None
+            
+            image_name, out_data_name = model_heat_capacity(debye_comps,
+                                                             einstein_comps, 
+                                                             linear, 
+                                                             uploaded_file,
+                                                             float(form.start_T.data), 
+                                                             float(form.start_T.data), 
+                                                             form.log_x.data, 
+                                                             form.log_y.data, 
+                                                             form.temp_power.data)
+            
+            
+            form.output_data.data = os.path.join('heat_capacity/static/generated_data', out_data_name)
+            form.generated_image.data = os.path.join('heat_capacity/static/generated_images',image_name)
             return render_template("heat_capacity.html", form=form)
 
         except Exception as e:
@@ -226,3 +257,55 @@ def predict():
             app.logger.debug(traceback.print_exc())
     app.logger.debug("Validate on submit failed")
     return render_template("heat_capacity.html", form=form)
+
+@app.route("/API_info", methods=['GET', 'POST'])
+def api_info():
+    return render_template("api_info.html")
+
+class ApiEndpoint(Resource):
+    def get(self):
+        return {"Hello": "world"}
+
+    def put(self):
+        args = parser.parse_args()
+        if ("Debye_components" not in args) or ("Einstein_components" not in args) or \
+           ("linear_component" not in args) or ("start_temp" not in args) or \
+           ("end_temp" not in args) :
+            return {"Error":"Failed to process input, check all required arguments are provided."}    
+        if ("data_file_name" not in args) and ("input_data" not in args):
+            return {"Error":"No input data provided."}
+        try:
+            
+            exponent_val = args["exponent"] if "exponent" in args else 1
+            log_x = args["log_x"] if "log_x" in args else None
+            log_y = args["log_y"] if "log_y" in args else None
+
+            if "input_data" in args:
+                file_name = ''.join(random.sample(char_set*6, 8))+'.cif'
+                if isinstance(args["input_data"],str):
+                    with open(os.path.join(app.config['UPLOAD_FOLDER'], file_name),"r") as f:
+                        f.write(args["input_data"])
+                else:
+                    args["input_data"].save(os.path.join(app.config['UPLOAD_FOLDER'], file_name))
+
+
+                with open(os.path.join(app.config['UPLOAD_FOLDER'],file_name), 'r') as f:
+                    uploaded_file = f.readlines()
+            else:
+                with open(os.path.join(app.config['UPLOAD_FOLDER'],
+                     secure_filename(args["data_file_name"])), 'r') as f:
+                    uploaded_file = f.readlines()
+            image_file_name, data_file_name = model_heat_capacity(args["Debye_components"], args["Einstein_components"], args["linear_component"], uploaded_file,
+                                                              args["start_temp"], args["end_temp"], log_x, log_y, exponent_val)
+
+            return {"uploaded_file":file_name, 
+            "image_file": os.path.join('heat_capacity/static/generated_images',image_file_name), 
+            "data_file": os.path.join('heat_capacity/static/generated_data', data_file_name)}
+        except Exception as e:
+            app.logger.debug(e)
+            return {"Error":"Failed to process input, check it is properly formatted."}    
+    
+    def post(self):
+        args = parser.parse_args()
+        return self.put()
+api.add_resource(ApiEndpoint, "/API")
