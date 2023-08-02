@@ -234,7 +234,6 @@ def predict():
                 if form.message_field.data is None:
                     form.message_field.data = ""
                 form.message_field.data += "<br> <b> Warning:</b> this model does not work below approximately 1.6 Kelvin"
-<<<<<<< HEAD
             
             linear = form.linear.data if form.linear.data else None
             
@@ -251,94 +250,6 @@ def predict():
             
             form.output_data.data = os.path.join('heat_capacity/static/generated_data', out_data_name)
             form.generated_image.data = os.path.join('heat_capacity/static/generated_images',image_name)
-=======
-
-            # Parse uploaded data
-            data_0 = [float(x.split(',')[0].rstrip()) for x in uploaded_file]
-            data_1 = [float(x.split(',')[1].rstrip()) for x in uploaded_file]
-
-            # Create lists to fill with modeled data
-            debye_ys = [[] for i in debye_comps]
-            einstein_ys = [[] for i in einstein_comps]
-            linear_ys = []
-            # Temperatures at which to calculate
-            temps = np.arange(float(form.start_T.data), float(form.end_T.data), 0.1)
-            # Model data
-
-            for T in temps:
-                for i, (Td, Tdp) in enumerate(debye_comps):
-                    if Tdp:
-                        app.logger.debug(f"{i}")
-                        debye_ys[i].append((Tdp * Debye(T, Td))/T**form.temp_power.data)
-
-                for i, (Te, Tep) in enumerate(einstein_comps):
-                    if Tep:
-                        einstein_ys[i].append((Tep * Einstein(T, Te))/T**form.temp_power.data)
-                # Linear (gamma) part
-                if form.linear.data:
-                    linear_ys.append((y(form.linear.data, T))/T**form.temp_power.data)
-                    
-            all_ys = zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0])
-            totaly = list(map(sum, all_ys))
-
-            # Plot
-            plt.scatter(data_0,
-                        [data_1[i]/data_0[i]**int(form.temp_power.data)
-                         for i in range(len(data_0))],
-                        c="r",
-                        s=10,
-                        label="data")
-            plt.plot(temps, totaly, c="black", label="total")
-            data_dict = {"T": temps, "Total": totaly}
-            for i, ys in enumerate(debye_ys):
-                app.logger.debug(f"i {i} Len ys:, {len(ys)}")
-                if len(ys) > 0:
-                    data_dict[f"D{i+1}"] = ys
-                    plt.plot(temps, ys, label=f"D{i+1}")
-            for i, ys in enumerate(einstein_ys):
-                if len(ys) > 0:
-                    data_dict[f"E{i+1}"] = ys
-                    plt.plot(temps, ys, label=f"E{i+1}")
-
-            if form.linear.data:
-                data_dict["Linear"] = linear_ys
-                plt.plot(temps, linear_ys, label="Linear")
-
-            plt.xlabel("$T$")
-            if form.temp_power.data > 1:
-                plt.ylabel(f"$C_p/T^{form.temp_power.data}$")
-            elif form.temp_power.data == 1:
-                plt.ylabel("$C_p/T$")
-            elif form.temp_power.data == 0:
-                plt.ylabel("$C_p$")
-            if form.log_x.data:
-                plt.xlabel("$log T$")
-                plt.xscale('log')
-            if form.log_y.data:
-                plt.yscale('log')
-                if form.temp_power.data > 1:
-                    plt.ylabel(f"$log(C_p/T^{form.temp_power.data})$")
-                elif form.temp_power.data == 1:
-                    plt.ylabel("$log(C_p/T)$")
-                elif form.temp_power.data == 0:
-                    plt.ylabel("$log(C_p)$")
-
-            plt.legend()
-            file_name = ''.join(random.sample(char_set*6, 8))+'.png'
-            plt.tight_layout()
-            # Save plot
-            plt.savefig(os.path.join(app.config['GENERATED_IMAGES_FOLDER'], file_name))
-            plt.close()
-
-            # Direct user to saved plot
-            form.generated_image.data = os.path.join('heat_capacity/static/generated_images',file_name)
-            file_name = ''.join(random.sample(char_set*6, 8))+'.csv'
-
-            # Save resulting data
-            df = pd.DataFrame(data_dict)
-            df.to_csv(os.path.join(app.config['GENERATED_DATA_FOLDER'], file_name),index=False)
-            form.output_data.data = os.path.join('heat_capacity/static/generated_data', file_name)
->>>>>>> 08910906ee639417b78ac21352752648ab40e061
             return render_template("heat_capacity.html", form=form)
 
         except Exception as e:
