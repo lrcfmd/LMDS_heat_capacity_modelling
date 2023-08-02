@@ -4,7 +4,7 @@
 <html>
 
 <head>
-	<title>Modelling Heat Capacity Data</title>
+	<title>Heat Capacity</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
 		integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
@@ -48,12 +48,14 @@ outline: none;
 
 <body>
 	{% include '/static/header.html' %}
-	<div class="mainView">
+	<div class="mainView container mainContainer">
 	<div class="container mt-5">
 
 
 		<div class="form ">
-			<p class="title text-red">Modelling Heat Capacity Data</p>
+<!--			<p class="title text-red">Modelling Heat Capacity Data</p> -->
+			<img class="title" src="https://lmds.liverpool.ac.uk/static/images/Titles/heat_cap.svg">
+			<br>
 			<form action="" enctype="multipart/form-data" method="POST">
 				<div class="input-form">
 					{{ form.csrf_token }}
@@ -62,7 +64,7 @@ outline: none;
 					{{ form.output_data()}}
 
 					{% if (form.file_name.data != None) and (form.file_name.data |length  > 0)%}
-						<p>Your file is already uploaded and will be stored for 15 minutes, there is no need to reupload file unless wish to change the data you are opperating on</p>
+						<p>Your file is already uploaded and will be stored for 15 minutes, there is no need to reupload file unless wish to change the data you are operating on</p>
 					{% endif%}
 					{% if form.message_field.data != None %}
 						<p>{{form.message_field.data}}</p>
@@ -71,7 +73,7 @@ outline: none;
 						<img src={{form.generated_image.data}}>
 					{% endif %}
 					{% if form.output_data.data != None %}
-						<a href={{form.output_data.data}} download>Click here to download your model</a>
+						<a href={{form.output_data.data}} class="downlaod-btn" download>Click here to download your model</a>
 					{% endif %}
 					<div>
 							<h4>Einstein components</h4>
@@ -124,6 +126,11 @@ outline: none;
 
 
 	</div>
+	
+	<p id="explanationText">
+	This tool implements a process to calculate the Einstein and Debye contributions to the total heat capacity of a material. Upload a csv file of temperature readings and measured heat capacity, specify the Einstein and Debye temperatures with their pre-factor components to generate tthe resultant contributions across the temperature range. This tool was first reported in <a href="">The Liverpool Materials Discovery Server: A suite of tools for the collaborative discovery of materials.</a>, please consider citing this paper if you use this in your work.
+	</p>
+
 </div>
 	{% include '/static/footer.html' %}
 
