@@ -110,14 +110,14 @@ def model_heat_capacity(debye_comps, einstein_comps, linear, uploaded_file, star
     data_1 = [float(x.split(',')[1].rstrip()) for x in uploaded_file]
             
     # Create lists to fill with modeled data
-    debye_ys = [[]] * len(debye_comps)
-    einstein_ys = [[]] * len(einstein_comps)
+    debye_ys = [[] for i in debye_comps]
+    einstein_ys = [[] for i in einstein_comps]
     linear_ys = []
     # Temperatures at which to calculate
     temps = np.arange(start_t, end_t, 0.1)
     # Model data
     for T in temps:
-        for ys, (Td, Tdp) in zip(debye_ys, debye_comps):
+        for ys, (Td, Tdp) in zip(debye_ys, debye_comps):     
             if Tdp:
                 ys.append((Tdp * Debye(T, Td))/T**exponent_val)
 
@@ -127,8 +127,11 @@ def model_heat_capacity(debye_comps, einstein_comps, linear, uploaded_file, star
         # Linear (gamma) part
         if linear is not None:
             linear_ys.append((y(linear, T))/T**exponent_val)
-    all_ys = zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0])
+    all_ys = list(zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0]))
+    
+
     totaly = list(map(sum, all_ys))
+
 
     # Plot
     plt.scatter(data_0,
@@ -256,6 +259,8 @@ def predict():
             app.logger.debug(e)
             app.logger.debug(traceback.print_exc())
     app.logger.debug("Validate on submit failed")
+    form.generated_image.data = None
+    form.output_data.data = None
     return render_template("heat_capacity.html", form=form)
 
 @app.route("/API_info", methods=['GET', 'POST'])
