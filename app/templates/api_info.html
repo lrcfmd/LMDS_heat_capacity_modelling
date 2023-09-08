@@ -4,7 +4,7 @@
 <html>
 
 <head>
-	<title>MOF Porosity</title>
+	<title>Heat Capacity</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
 		integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
@@ -29,12 +29,12 @@
 
 		<div>
 <!--			<p class="title text-red">MOF Porosity prediction API</p> -->
-			<img href="title" src="https://lmds.liverpool.ac.uk/static/images/Titles/mof_pore.svg">
+			<img href="title" src="https://lmds.liverpool.ac.uk/static/images/Titles/heat_cap.svg">
 			
 	</div>
 
 	<p id="explanationText">
-	Access to the heat capacity modeling REST API is had through POST or PUT requests to <a>https://lmds.liverpool.ac.uk/heat_capacity/API</a> with JSON fitting the following schema:</p>
+	Access to the heat capacity modeling REST API provided by making POST or PUT requests to <a>https://lmds.liverpool.ac.uk/heat_capacity/API</a> with JSON fitting the following schema:</p>
         <table class="table table-striped table-hover">
 				<tr>
 					<th>Argument</th>
@@ -49,10 +49,10 @@
                 <td>Einstein_components</td> <td> List of lists </td><td>List of Einstein components laid out in the same way as Debye components</td>
             </tr>
             <tr>
-                <td>linear_component</td> <td> Float </td><td>&gamma the linear component </td>
+                <td>linear_component</td> <td> Float </td><td>&pgr the linear component </td>
             </tr>
             <tr>
-                <td>start_temp</td> <td> Float </td><td> Temperature at which to start modeling in Kelvin (note: this is not well deffined below ~1.6 K)</td>
+                <td>start_temp</td> <td> Float </td><td> Temperature at which to start modeling in Kelvin (note: this is not well defined below ~1.6 K)</td>
             </tr>
             <tr>
                 <td>end_temp</td> <td> Float </td><td>Temperature at which to finish modeling</td>
@@ -67,10 +67,10 @@
                 <td>log_y</td> <td> "True" or "False" (optional, default False) </td><td>Whether to log the y axis of the resulting plot</td>
             </tr>
             <tr>
-                <td>"input_data"</td> <td> String or Hex File (optional) </td><td>Data with which to model, either this field or data_file_name are required, if both are provided this field gets precidence</td>>
+                <td>input_data</td> <td> String or Hex File (optional) </td><td>Data with which to model, either this field or data_file_name are required, if both are provided this field gets precedence</td>>
             </tr>
             <tr>
-                <td>"data_file_name"</td> <td> String (optional) </td><td>The name of the file already on the server which has been provided in a previous response. Files are deleted every 15 minutes</td>>
+                <td>data_file_name</td> <td> String (optional) </td><td>The name of the file already on the server which has been provided in a previous response. Files are deleted every 15 minutes</td>>
             </tr>
 
 

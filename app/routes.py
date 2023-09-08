@@ -3,7 +3,7 @@ import os
 import random
 import traceback
 import string
-from flask import render_template
+from flask import render_template, jsonify, make_response
 from flask_restful import Resource, Api, reqparse
 from math import e, exp
 from jinja2 import BaseLoader, TemplateNotFound, ChoiceLoader
@@ -242,7 +242,7 @@ def predict():
                                                              linear, 
                                                              uploaded_file,
                                                              float(form.start_T.data), 
-                                                             float(form.start_T.data), 
+                                                             float(form.end_T.data), 
                                                              form.log_x.data, 
                                                              form.log_y.data, 
                                                              form.temp_power.data)
@@ -271,9 +271,9 @@ class ApiEndpoint(Resource):
         if ("Debye_components" not in args) or ("Einstein_components" not in args) or \
            ("linear_component" not in args) or ("start_temp" not in args) or \
            ("end_temp" not in args) :
-            return {"Error":"Failed to process input, check all required arguments are provided."}    
+            return make_response(jsonify({"Error":"Failed to process input, check all required arguments are provided."}, 400))
         if ("data_file_name" not in args) and ("input_data" not in args):
-            return {"Error":"No input data provided."}
+            return make_response(jsonify({"Error":"No input data provided."}, 400))
         try:
             
             exponent_val = args["exponent"] if "exponent" in args else 1
@@ -298,12 +298,12 @@ class ApiEndpoint(Resource):
             image_file_name, data_file_name = model_heat_capacity(args["Debye_components"], args["Einstein_components"], args["linear_component"], uploaded_file,
                                                               args["start_temp"], args["end_temp"], log_x, log_y, exponent_val)
 
-            return {"uploaded_file":file_name, 
+            return jsonify({"Heat Capacity Results": {"uploaded_file":file_name, 
             "image_file": os.path.join('heat_capacity/static/generated_images',image_file_name), 
-            "data_file": os.path.join('heat_capacity/static/generated_data', data_file_name)}
+            "data_file": os.path.join('heat_capacity/static/generated_data', data_file_name)}})
         except Exception as e:
             app.logger.debug(e)
-            return {"Error":"Failed to process input, check it is properly formatted."}    
+            return make_response(jsonify({"Error":"Failed to process input, check it is properly formatted."}), 500)
     
     def post(self):
         args = parser.parse_args()
