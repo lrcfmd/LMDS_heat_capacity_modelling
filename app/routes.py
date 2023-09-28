@@ -86,18 +86,18 @@ dictConfig({"version": 1,
 
 # Einstein Function
 def Einstein(T, Te):
-    Cve = ((3*R*((Te/T)**2))*((e**(Te/T))/((e**(Te/T)-1)**2)))
+    Cve = ((3*R*(np.power((Te/T),2)))*((np.power(e,(Te/T)))/(np.power((np.power(e,(Te/T))-1),2))))
     return Cve
 
 
 # Debye Function
 def integrate(x):
-    integ = ((x**4)*(exp(x)))/(((exp(x)-1)**2))
+    integ = ((np.power(x,4))*(exp(x)))/(np.power(exp(x)-1,2))
     return integ
 
 
 def Debye(T, Td):
-    Cvd = ((9*R*((T/Td)**3))*quad(integrate, 0, Td/T)[0])
+    Cvd = ((9*R*(np.power(T/Td,3)))*quad(integrate, 0, Td/T)[0])
     return Cvd
 
 
@@ -155,22 +155,27 @@ def model_heat_capacity(params, temps, true_values, n_debye, exponent_val, const
     for T in temps:
         for ys, (Td, Tdp) in zip(debye_ys, debye_comps):     
             if Tdp:
-                ys.append((Tdp * Debye(T, Td))/T**exponent_val)
+                ys.append((Tdp * Debye(T, Td))/np.power(T,exponent_val))
 
         for ys, (Te, Tep) in zip(einstein_ys, einstein_comps):
             if Tep:
-                ys.append((Tep * Einstein(T, Te))/T**exponent_val)
+                ys.append((Tep * Einstein(T, Te))/np.power(T,exponent_val))
         # Linear (gamma) part
         if linear is not None:
-            linear_ys.append((y(linear, T))/T**exponent_val)
+            linear_ys.append((y(linear, T))/np.power(T,exponent_val))
     all_ys = list(zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0]))
     
     totaly = list(map(sum, all_ys))
     if return_totals:
         return debye_ys, einstein_ys, linear_ys, totaly
     # Calculate the objective function as the sum of squared differences
-    obj_value = sum([((y - yhat)/max(y,yhat))**2 for y, yhat in zip(totaly,true_values)])
-    return obj_value
+    total_err = 0
+    for T, yp, yhat in zip(temps,totaly,true_values):
+        plot_y = yp/np.power(T,exponent_val)
+        plot_yhat = yhat/np.power(T,exponent_val)
+        total_err += math.fabs(plot_y-plot_yhat)/math.fabs(max(plot_y,plot_yhat))
+
+    return total_err
 
 
 def model_and_plot_heat_capacity(debye_comps, einstein_comps, linear, uploaded_file, start_t, end_t, log_x, log_y, exponent_val, optimise=False):
@@ -190,7 +195,7 @@ def model_and_plot_heat_capacity(debye_comps, einstein_comps, linear, uploaded_f
         res = minimize(model_heat_capacity, params, args=(data_0, data_1, len(debye_comps), exponent_val), bounds=bounds)
         if not res.success:
             app.logger.debug("Failure to optimise")
-            app.logger.debug(params.x)
+            app.logger.debug(res.x)
             raise Exception(res.message)
         params = res.x
         app.logger.debug(f"params optimised: {params}")
@@ -254,7 +259,7 @@ def model_and_plot_heat_capacity(debye_comps, einstein_comps, linear, uploaded_f
     df = pd.DataFrame(data_dict)
     df.to_csv(os.path.join(app.config['GENERATED_DATA_FOLDER'], data_file_name),index=False)
     if optimise:
-        return image_file_name, data_file_name
+        return image_file_name, data_file_name, debye_comps, einstein_comps, linear
     return image_file_name, data_file_name
 
 
@@ -306,22 +311,46 @@ def predict():
                 form.message_field.data += "<br> <b> Warning:</b> this model does not work below approximately 1.6 Kelvin"
             
             linear = form.linear.data if form.linear.data else None
+            results = None
+            if form.optimise_values.data:
+                try:
+                    image_name, out_data_name, debye_comps, einstein_comps, linear = model_and_plot_heat_capacity(debye_comps,
+                                                einstein_comps, 
+                                                linear, 
+                                                uploaded_file,
+                                                float(form.start_T.data), 
+                                                float(form.end_T.data), 
+                                                form.log_x.data, 
+                                                form.log_y.data, 
+                                                form.temp_power.data,
+                                                optimise=form.optimise_values.data)
+                    app.logger.debug("Updating values in form")
+                    results = {"debye_comps":debye_comps, "einstein_comps":einstein_comps, "linear":linear}
+                    for i in range(len(form.einstein_comps)):
+                        form.einstein_comps[i].component.data = round(einstein_comps[i][0],3)
+                        form.einstein_comps[i].prefactor.data = round(einstein_comps[i][1],3)
+                    for i in range(len(form.debye_comps)):
+                        form.debye_comps[i].component.data = round(debye_comps[i][0],3)
+                        form.debye_comps[i].prefactor.data = round(debye_comps[i][1],3)
+                    form.linear.data = round(linear,5)
+                except: 
+                    render_template("heat_capacity.html", form=form, message="Failed to calculate optimum, please adjust initial guesses")
+            else:
+                    image_name, out_data_name = model_and_plot_heat_capacity(debye_comps,
+                                            einstein_comps, 
+                                            linear, 
+                                            uploaded_file,
+                                            float(form.start_T.data), 
+                                            float(form.end_T.data), 
+                                            form.log_x.data, 
+                                            form.log_y.data, 
+                                            form.temp_power.data,
+                                            optimise=form.optimise_values.data)
             
-            image_name, out_data_name = model_and_plot_heat_capacity(debye_comps,
-                                                             einstein_comps, 
-                                                             linear, 
-                                                             uploaded_file,
-                                                             float(form.start_T.data), 
-                                                             float(form.end_T.data), 
-                                                             form.log_x.data, 
-                                                             form.log_y.data, 
-                                                             form.temp_power.data,
-                                                             optimise=form.optimise_values.data)
-            
-            
+
             form.output_data.data = os.path.join('heat_capacity/static/generated_data', out_data_name)
             form.generated_image.data = os.path.join('heat_capacity/static/generated_images',image_name)
-            return render_template("heat_capacity.html", form=form)
+            return render_template("heat_capacity.html", form=form, results=results)
 
         except Exception as e:
             app.logger.debug(e)

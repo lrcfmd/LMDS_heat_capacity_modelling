@@ -107,8 +107,10 @@ outline: none;
 					<br>
 					<div>Linear (&gamma;) component {{form.linear(type="search", class="search_term")}}</div>
 					<br>
-					<div>Optimise values? {{form.optimise_values()}} This will use a regression model to try and tune the input parameters to fit your data based on your initial guesses, this is better for fine tuning. Expect to wait more than 10 seconds for this to load </div>
+					<div>Optimise values? {{form.optimise_values()}} This will use a regression model to try and tune the input parameters to fit your data based on your initial guesses, this is better for fine tuning. Expect to wait about 30 seconds for this to load </div>
+					<br>
 					Plot data as C<sub>p</sub>/T<sup>n</sup> (n = 0 for high T fitting, 3 for low T fitting){{form.temp_power(type="search", class="search_term")}}
+					
 					Model Starting Temperature (K) {{form.start_T(type="search",class="search_term")}}
 					Model Ending Temperature (K) {{form.end_T(type="search",class="search_term")}}
 					<br>
@@ -120,7 +122,18 @@ outline: none;
 					{{form.generated_image()}}
 					{{ form.submit() }}
 				</div>
-
+				{% if results %}
+				<table class="table table-striped table-hover">
+					<tr> Values found through optimisation </tr>
+					<tr> <tc> Einstein components (temperature, prefactor) </tc> <tc>{{results["einstein_comps"]}}</tc></tr>
+					<tr> <tc> Debye components (temperature, prefactor) </tc> <tc>{{results["debye_comps"]}}</tc></tr>
+					<tr> <tc> Linear (gamma) component </tc> <tc>{{results["debye_comps"]}}</tc></tr>
+				</table>
+				If these do not seem a good fit to you try adjusting your initial guesses and trying again
+				{% endif %}
+				{% if message %}
+				<p>{{message}}</p>
+				{% endif %}
 			</form>
 
 		</div>
