@@ -325,8 +325,10 @@ def predict():
                                                 form.temp_power.data,
                                                 optimise=form.optimise_values.data)
                     app.logger.debug("Updating values in form")
-                    results = {"debye_comps":", ".join([(round(x,3), round(ys,3)) for x, ys in debye_comps]), 
-                               "einstein_comps":", ".jounr([(round(x,3), round(ys,3)) for x, ys in einstein_comps]), "linear":round(linear,3) if linear is not None else ""}
+                    results = {"debye_comps":[(round(x,3), round(ys,3)) for x, ys in debye_comps], 
+                               "einstein_comps":[(round(x,3), round(ys,3)) for x, ys in einstein_comps], 
+                               "linear":round(linear,3) if linear is not None else ""}
+                    app.logger.debug(results)
                     for i in range(len(form.einstein_comps)):
                         form.einstein_comps[i].component.data = round(einstein_comps[i][0],3)
                         form.einstein_comps[i].prefactor.data = round(einstein_comps[i][1],3)
