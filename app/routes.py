@@ -198,28 +198,6 @@ def model_and_plot_heat_capacity(debye_comps, einstein_comps, linear, uploaded_f
         params = create_param_list(debye_comps, einstein_comps, linear) # Now the param list is constrained
         
     debye_ys, einstein_ys, linear_ys, totaly = model_heat_capacity(params, temps, data_1, len(debye_comps), exponent_val, constrain_parameters=False,return_totals=True)
-    # Create lists to fill with modeled data
-    # debye_ys = [[] for i in debye_comps]
-    # einstein_ys = [[] for i in einstein_comps]
-    # linear_ys = []
-    # # Temperatures at which to calculate
-    # temps = np.arange(start_t, end_t, 0.1)
-    # # Model data
-    # for T in temps:
-    #     for ys, (Td, Tdp) in zip(debye_ys, debye_comps):     
-    #         if Tdp:
-    #             ys.append((Tdp * Debye(T, Td))/T**exponent_val)
-
-    #     for ys, (Te, Tep) in zip(einstein_ys, einstein_comps):
-    #         if Tep:
-    #             ys.append((Tep * Einstein(T, Te))/T**exponent_val)
-    #     # Linear (gamma) part
-    #     if linear is not None:
-    #         linear_ys.append((y(linear, T))/T**exponent_val)
-    # all_ys = list(zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0]))
-
-    #totaly = list(map(sum, all_ys))
-
 
     # Plot
     plt.scatter(data_0,
