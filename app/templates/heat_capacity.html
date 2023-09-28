@@ -124,10 +124,10 @@ outline: none;
 				</div>
 				{% if results %}
 				<table class="table table-striped table-hover">
-					<tr> <tc>Values found through optimisation </tc></tr>
-					<tr> <tc> Einstein components (temperature, prefactor) </tc> <tc>{{results["einstein_comps"]}}</tc></tr>
-					<tr> <tc> Debye components (temperature, prefactor) </tc> <tc>{{results["debye_comps"]}}</tc></tr>
-					<tr> <tc> Linear (gamma) component </tc> <tc>{{results["debye_comps"]}}</tc></tr>
+					<tr> <td>Values found through optimisation </td></tr>
+					<tr> <td> Einstein components (temperature, prefactor) </td> <tc>{{results["einstein_comps"]}}</td></tr>
+					<tr> <td> Debye components (temperature, prefactor) </td> <tc>{{results["debye_comps"]}}</td></tr>
+					<tr> <td> Linear (gamma) component </td> <td>{{results["debye_comps"]}}</td></tr>
 				</table>
 				If these do not seem a good fit to you try adjusting your initial guesses and trying again
 				{% endif %}
