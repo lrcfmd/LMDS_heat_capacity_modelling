@@ -107,6 +107,7 @@ outline: none;
 					<br>
 					<div>Linear (&gamma;) component {{form.linear(type="search", class="search_term")}}</div>
 					<br>
+					<div>Optimise values? {{form.optimise_values()}} This will use a regression model to try and tune the input parameters to fit your data based on your initial guesses, this is better for fine tuning. Expect to wait more than 10 seconds for this to load </div>
 					Plot data as C<sub>p</sub>/T<sup>n</sup> (n = 0 for high T fitting, 3 for low T fitting){{form.temp_power(type="search", class="search_term")}}
 					Model Starting Temperature (K) {{form.start_T(type="search",class="search_term")}}
 					Model Ending Temperature (K) {{form.end_T(type="search",class="search_term")}}

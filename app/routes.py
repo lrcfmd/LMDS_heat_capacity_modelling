@@ -2,7 +2,9 @@
 import os
 import random
 import traceback
+from scipy.optimize import minimize, LinearConstraint
 import string
+import math
 from flask import render_template, jsonify, make_response
 from flask_restful import Resource, Api, reqparse
 from math import e, exp
@@ -104,17 +106,51 @@ def y(gamma, T):
     j = (gamma*T)
     return j
 
+#seperate linear, debye and einstein components from a single vector of parameters
+def param_list_seperate(params, n_debye):
+    
+    debye_comps = [(params[i], params[i+1]) for i in range(0,n_debye*2,2)]
+    assert len(debye_comps) == n_debye
+    einstein_comps = []
+    if len(params)%2 != 0:
+        linear = params[-1]
+        if n_debye * 2 + 1 < len(params):
+            einstein_comps = [(params[i], params[i+1]) for i in range(n_debye*2,len(params)-2,2)]         
+    else:
+        linear = None
+        if n_debye * 2 < len(params):
+            einstein_comps = [(params[i], params[i+1]) for i in range(n_debye*2,len(params)-1,2)] 
+    
+    return debye_comps, einstein_comps, linear
 
-def model_heat_capacity(debye_comps, einstein_comps, linear, uploaded_file, start_t, end_t, log_x, log_y, exponent_val):
-    data_0 = [float(x.split(',')[0].rstrip()) for x in uploaded_file]
-    data_1 = [float(x.split(',')[1].rstrip()) for x in uploaded_file]
-            
-    # Create lists to fill with modeled data
+def create_param_list(debye_comps, einstein_comps, linear):
+    params = [p for pair in debye_comps for p in pair] 
+    params += [p for pair in einstein_comps for p in pair]
+    if linear is not None:
+        params.append(linear)
+    return params
+
+def parameter_constrainer(debye_comps, einstein_comps, linear):
+    total_prefactors = sum([math.fabs(x[1]) for x in debye_comps+einstein_comps])
+    if linear is not None:
+        total_prefactors += linear
+        linear = math.fabs(linear/total_prefactors)
+    einstein_comps = [(math.fabs(x[0]),math.fabs(x[1]/total_prefactors)) for x in einstein_comps]
+    debye_comps = [(math.fabs(x[0]), math.fabs(x[1]/total_prefactors)) for x in debye_comps]
+    return debye_comps, einstein_comps, linear
+
+
+
+def model_heat_capacity(params, temps, true_values, n_debye, exponent_val, constrain_parameters=True,return_totals=False):
+    # Extract parameters
+    debye_comps, einstein_comps, linear = param_list_seperate(params, n_debye)
+    if constrain_parameters:
+        debye_comps, einstein_comps, linear = parameter_constrainer(debye_comps, einstein_comps, linear)
+        
+    # Update debye_comps, einstein_comps, and linear
     debye_ys = [[] for i in debye_comps]
     einstein_ys = [[] for i in einstein_comps]
     linear_ys = []
-    # Temperatures at which to calculate
-    temps = np.arange(start_t, end_t, 0.1)
     # Model data
     for T in temps:
         for ys, (Td, Tdp) in zip(debye_ys, debye_comps):     
@@ -129,8 +165,60 @@ def model_heat_capacity(debye_comps, einstein_comps, linear, uploaded_file, star
             linear_ys.append((y(linear, T))/T**exponent_val)
     all_ys = list(zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0]))
     
-
     totaly = list(map(sum, all_ys))
+    if return_totals:
+        return debye_ys, einstein_ys, linear_ys, totaly
+    # Calculate the objective function as the sum of squared differences
+    obj_value = sum([((y - yhat)/max(y,yhat))**2 for y, yhat in zip(totaly,true_values)])
+    return obj_value
+
+
+def model_and_plot_heat_capacity(debye_comps, einstein_comps, linear, uploaded_file, start_t, end_t, log_x, log_y, exponent_val, optimise=False):
+    data_0 = [float(x.split(',')[0].rstrip()) for x in uploaded_file]
+    data_1 = [float(x.split(',')[1].rstrip()) for x in uploaded_file]
+    
+    #Temps to calculate
+    temps = np.arange(start_t, end_t, 0.1)
+
+    params = create_param_list(debye_comps, einstein_comps, linear)
+    app.logger.debug(f"params {params}")
+    if optimise:
+        bounds = [(1.75,None) if i % 2 == 0 else (0,1) for i in range(len(params))]
+        if linear is not None:
+            bounds[-1] = (0,1)
+
+        res = minimize(model_heat_capacity, params, args=(data_0, data_1, len(debye_comps), exponent_val), bounds=bounds)
+        if not res.success:
+            app.logger.debug("Failure to optimise")
+            app.logger.debug(params.x)
+            raise Exception(res.message)
+        params = res.x
+        app.logger.debug(f"params optimised: {params}")
+        debye_comps, einstein_comps, linear = parameter_constrainer(*param_list_seperate(params, len(debye_comps)))
+        params = create_param_list(debye_comps, einstein_comps, linear) # Now the param list is constrained
+        
+    debye_ys, einstein_ys, linear_ys, totaly = model_heat_capacity(params, temps, data_1, len(debye_comps), exponent_val, constrain_parameters=False,return_totals=True)
+    # Create lists to fill with modeled data
+    # debye_ys = [[] for i in debye_comps]
+    # einstein_ys = [[] for i in einstein_comps]
+    # linear_ys = []
+    # # Temperatures at which to calculate
+    # temps = np.arange(start_t, end_t, 0.1)
+    # # Model data
+    # for T in temps:
+    #     for ys, (Td, Tdp) in zip(debye_ys, debye_comps):     
+    #         if Tdp:
+    #             ys.append((Tdp * Debye(T, Td))/T**exponent_val)
+
+    #     for ys, (Te, Tep) in zip(einstein_ys, einstein_comps):
+    #         if Tep:
+    #             ys.append((Tep * Einstein(T, Te))/T**exponent_val)
+    #     # Linear (gamma) part
+    #     if linear is not None:
+    #         linear_ys.append((y(linear, T))/T**exponent_val)
+    # all_ys = list(zip(*[x for x in debye_ys + einstein_ys + [linear_ys] if len(x) > 0]))
+
+    #totaly = list(map(sum, all_ys))
 
 
     # Plot
@@ -187,7 +275,8 @@ def model_heat_capacity(debye_comps, einstein_comps, linear, uploaded_file, star
     # Save resulting data
     df = pd.DataFrame(data_dict)
     df.to_csv(os.path.join(app.config['GENERATED_DATA_FOLDER'], data_file_name),index=False)
-    
+    if optimise:
+        return image_file_name, data_file_name
     return image_file_name, data_file_name
 
 
@@ -232,7 +321,7 @@ def predict():
             app.logger.debug(debye_comps)
             # Check args
             if sum([x[1] for x in einstein_comps+debye_comps]) != 1:
-                form.message_field.data = "The sum of the Debye and Einstein pre-factors do not sum to 1, please amend this before downloading your model."
+                form.message_field.data = "The sum of the Debye and Einstein pre-factors do not sum to 1, they will be scaled accordingly in the amend this before downloading your model."
             if float(form.start_T.data) < 1.7:
                 if form.message_field.data is None:
                     form.message_field.data = ""
@@ -240,7 +329,7 @@ def predict():
             
             linear = form.linear.data if form.linear.data else None
             
-            image_name, out_data_name = model_heat_capacity(debye_comps,
+            image_name, out_data_name = model_and_plot_heat_capacity(debye_comps,
                                                              einstein_comps, 
                                                              linear, 
                                                              uploaded_file,
@@ -248,7 +337,8 @@ def predict():
                                                              float(form.end_T.data), 
                                                              form.log_x.data, 
                                                              form.log_y.data, 
-                                                             form.temp_power.data)
+                                                             form.temp_power.data,
+                                                             optimise=form.optimise_values.data)
             
             
             form.output_data.data = os.path.join('heat_capacity/static/generated_data', out_data_name)
@@ -300,7 +390,7 @@ class ApiEndpoint(Resource):
                 with open(os.path.join(app.config['UPLOAD_FOLDER'],
                      secure_filename(args["data_file_name"])), 'r') as f:
                     uploaded_file = f.readlines()
-            image_file_name, data_file_name = model_heat_capacity(args["Debye_components"], args["Einstein_components"], args["linear_component"], uploaded_file,
+            image_file_name, data_file_name = model_and_plot_heat_capacity(args["Debye_components"], args["Einstein_components"], args["linear_component"], uploaded_file,
                                                               args["start_temp"], args["end_temp"], log_x, log_y, exponent_val)
 
             return jsonify({"Heat Capacity Results": {"uploaded_file":file_name, 

@@ -20,6 +20,7 @@ class SearchForm(FlaskForm):
     temp_power = IntegerField(validators=[InputRequired()])
     einstein_comps = FieldList(FormField(ComponentForm), min_entries=0)
     debye_comps = FieldList(FormField(ComponentForm), min_entries=0)
+    optimise_values = BooleanField()
     log_x = BooleanField()
     log_y = BooleanField()
     start_T = FloatField(2, [InputRequired()])
