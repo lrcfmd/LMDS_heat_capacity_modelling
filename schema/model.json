@@ -1,0 +1,191 @@
+{
+  "$schema": "./model.schema.json",
+  "name": "heat-capacity",
+  "version": "1.0.0",
+
+  "parameters": {
+    "exponent": {
+      "type": "integer",
+      "description": "Data is modelled and plotted as Cp/T^n (n=0 for high-T fitting, 3 for low-T fitting). This is n.",
+      "default": 1
+    },
+    "log_x": {
+      "type": "boolean",
+      "description": "Use a logarithmic x (temperature) axis on the plot",
+      "default": false
+    },
+    "log_y": {
+      "type": "boolean",
+      "description": "Use a logarithmic y (heat capacity) axis on the plot",
+      "default": false
+    }
+  },
+
+  "execution": {
+    "modes": {
+      "model": {
+        "description": "Model heat capacity over a temperature range from fixed Debye, Einstein and linear components, producing a plot and the modelled data.",
+        "response": "deferred",
+        "inputs": {
+          "data": {
+            "type": "file",
+            "mime_type": "text/csv",
+            "required": true,
+            "description": "Measured data, two columns per line with no header: temperature (K), heat capacity"
+          },
+          "debye_components": {
+            "type": "array",
+            "default": [],
+            "description": "Debye components, each a Debye temperature and a prefactor (fractional weight)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "component": { "type": "number", "description": "Debye temperature Θ_D (K)" },
+                "prefactor": { "type": "number", "description": "Fractional weight of this component" }
+              }
+            }
+          },
+          "einstein_components": {
+            "type": "array",
+            "default": [],
+            "description": "Einstein components, each an Einstein temperature and a prefactor (fractional weight)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "component": { "type": "number", "description": "Einstein temperature Θ_E (K)" },
+                "prefactor": { "type": "number", "description": "Fractional weight of this component" }
+              }
+            }
+          },
+          "linear_component": {
+            "type": "number",
+            "default": 0,
+            "description": "Linear (electronic, γ) coefficient. 0 or omitted means no linear term."
+          },
+          "start_temp": {
+            "type": "number",
+            "required": true,
+            "description": "Temperature to start modelling from, in Kelvin (not well defined below ~1.6 K)"
+          },
+          "end_temp": {
+            "type": "number",
+            "required": true,
+            "description": "Temperature to finish modelling at, in Kelvin"
+          }
+        },
+        "outputs": {
+          "plot.png": {
+            "type": "file",
+            "mime_type": "image/png",
+            "description": "Plot of the measured data with the modelled total and per-component curves"
+          },
+          "model.csv": {
+            "type": "file",
+            "mime_type": "text/csv",
+            "description": "Modelled curve: temperature, total, and each Debye/Einstein/linear component"
+          },
+          "warnings": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Non-fatal warnings about the inputs (e.g. prefactors rescaled, low-temperature validity)"
+          }
+        }
+      },
+
+      "optimise": {
+        "description": "Optimise the Debye, Einstein and linear components to best fit the measured data, starting from the supplied values as initial guesses, then model as above.",
+        "response": "deferred",
+        "inputs": {
+          "data": {
+            "type": "file",
+            "mime_type": "text/csv",
+            "required": true,
+            "description": "Measured data, two columns per line with no header: temperature (K), heat capacity"
+          },
+          "debye_components": {
+            "type": "array",
+            "default": [],
+            "description": "Initial-guess Debye components, each a Debye temperature and a prefactor",
+            "items": {
+              "type": "object",
+              "properties": {
+                "component": { "type": "number", "description": "Debye temperature Θ_D (K)" },
+                "prefactor": { "type": "number", "description": "Fractional weight of this component" }
+              }
+            }
+          },
+          "einstein_components": {
+            "type": "array",
+            "default": [],
+            "description": "Initial-guess Einstein components, each an Einstein temperature and a prefactor",
+            "items": {
+              "type": "object",
+              "properties": {
+                "component": { "type": "number", "description": "Einstein temperature Θ_E (K)" },
+                "prefactor": { "type": "number", "description": "Fractional weight of this component" }
+              }
+            }
+          },
+          "linear_component": {
+            "type": "number",
+            "default": 0,
+            "description": "Initial-guess linear (electronic, γ) coefficient. 0 or omitted means no linear term."
+          },
+          "start_temp": {
+            "type": "number",
+            "required": true,
+            "description": "Temperature to start modelling from, in Kelvin (not well defined below ~1.6 K)"
+          },
+          "end_temp": {
+            "type": "number",
+            "required": true,
+            "description": "Temperature to finish modelling at, in Kelvin"
+          }
+        },
+        "outputs": {
+          "plot.png": {
+            "type": "file",
+            "mime_type": "image/png",
+            "description": "Plot of the measured data with the fitted total and per-component curves"
+          },
+          "model.csv": {
+            "type": "file",
+            "mime_type": "text/csv",
+            "description": "Fitted curve: temperature, total, and each Debye/Einstein/linear component"
+          },
+          "fitted_debye_components": {
+            "type": "array",
+            "description": "Fitted Debye components after optimisation",
+            "items": {
+              "type": "object",
+              "properties": {
+                "component": { "type": "number", "description": "Fitted Debye temperature Θ_D (K)" },
+                "prefactor": { "type": "number", "description": "Fitted fractional weight" }
+              }
+            }
+          },
+          "fitted_einstein_components": {
+            "type": "array",
+            "description": "Fitted Einstein components after optimisation",
+            "items": {
+              "type": "object",
+              "properties": {
+                "component": { "type": "number", "description": "Fitted Einstein temperature Θ_E (K)" },
+                "prefactor": { "type": "number", "description": "Fitted fractional weight" }
+              }
+            }
+          },
+          "fitted_linear": {
+            "type": "number",
+            "description": "Fitted linear (γ) coefficient, or null if no linear term was used"
+          },
+          "warnings": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Non-fatal warnings about the inputs (e.g. prefactors rescaled, low-temperature validity)"
+          }
+        }
+      }
+    }
+  }
+}

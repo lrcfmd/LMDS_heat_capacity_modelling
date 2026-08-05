@@ -1,3 +1,0 @@
-This is the folder which generated data goes so that the user can download it
-
-This should be cleaned with a scheduled rm job

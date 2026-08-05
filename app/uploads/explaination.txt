@@ -1,3 +1,0 @@
-This is the folder which uploaded goes to save the user reuploading every request
-
-This should be cleaned with a scheduled rm job

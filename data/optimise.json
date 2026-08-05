@@ -1,0 +1,12 @@
+{
+  "mode": "optimise",
+  "inputs": {
+    "data": { "uri": "file://data/input.csv", "mime_type": "text/csv" },
+    "debye_components": { "value": [{ "component": 90, "prefactor": 0.8 }] },
+    "einstein_components": { "value": [{ "component": 250, "prefactor": 0.2 }] },
+    "linear_component": { "value": 0 },
+    "start_temp": { "value": 2 },
+    "end_temp": { "value": 50 }
+  },
+  "parameters": { "exponent": 1, "log_x": false, "log_y": false }
+}
