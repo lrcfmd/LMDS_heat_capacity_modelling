@@ -89,11 +89,18 @@ Direct invocation (what the scripts wrap) — see `data/model.json` and
 
 ```bash
 docker build -t heat-capacity:1.0.0 .
-docker run --rm -v "$PWD/data:/data" heat-capacity:1.0.0 --local \
-  --parameters "$(cat data/model.json)"
+
+# Mount a data dir and point DATA_DIR at it so outputs land on the host.
+# Input URIs must be absolute inside the container (the mount is at /data),
+# so use file:///data/... not the repo-relative path in data/model.json.
+docker run --rm -e DATA_DIR=/data -v "$PWD/data:/data" heat-capacity:1.0.0 --local \
+  --parameters '{"mode":"model","inputs":{"data":{"uri":"file:///data/input.csv","mime_type":"text/csv"},"debye_components":{"value":[{"component":100,"prefactor":0.85}]},"einstein_components":{"value":[{"component":300,"prefactor":0.15}]},"linear_component":{"value":0},"start_temp":{"value":2},"end_temp":{"value":50}},"parameters":{"exponent":1,"log_x":false,"log_y":false}}'
+# -> writes data/output/plot.png and data/output/model.csv on the host
 ```
 
-Runs on the template default **Python 3.12** — this tool is pure
+In production the LMDS orchestrator sets `DATA_DIR` and passes S3 URIs; the
+`-e DATA_DIR` / `file:///data` handling above is only for self-contained local
+runs. Runs on the template default **Python 3.12** — this tool is pure
 numpy/scipy/matplotlib with no pinned/legacy dependencies.
 
 ## A note on the optimiser
