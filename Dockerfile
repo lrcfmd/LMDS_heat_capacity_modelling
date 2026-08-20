@@ -15,5 +15,11 @@ WORKDIR /app
 COPY --from=builder /app/dist/*.whl /app/
 RUN pip install --no-cache-dir /app/*.whl
 
-RUN mkdir -p /data/output
+RUN mkdir -p /data/output /home/lmds \
+    && groupadd lmds \
+    && useradd -g lmds -u 1000 -m -d /home/lmds lmds \
+    && chown -R 1000:1000 /app /data/output /home/lmds
+
+USER 1000:1000
+
 ENTRYPOINT ["model-run"]
